@@ -3,20 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Max｜JAN検索フロント（Supabase, password gate）</title>
+  <title>Max｜JAN検索フロント（診断モード）</title>
   <link rel="stylesheet" href="./assets/css/style.css" />
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./assets/js/supa.js"></script>
+  <style>
+    #diag{margin-top:8px;padding:10px;border:1px dashed #888;border-radius:8px;font-size:12px;white-space:pre-wrap;background:#0e1320;color:#cfd7ff}
+    #diag b{color:#ffd479}
+  </style>
 </head>
 <body>
   <div class="container">
     <div class="card">
       <h1>Max（フロント）Supabase同期</h1>
-      <p class="small">
-        右側で <b>チームキー</b> を設定してから使ってください。<br>
-        旧Excel（<kbd>payment_jan_export.xlsx</kbd> / <kbd>sales_data_export.xlsx</kbd>）はこのページで取り込めます。
-      </p>
+      <p class="small">まず<b>チームキー</b>を保存してから使います。エラー時は下部の「診断ログ」を確認してください。</p>
 
       <div class="flex" style="justify-content: space-between;">
         <div class="flex">
@@ -28,6 +29,7 @@
           <input id="teamKey" placeholder="例: TEAM-2025" style="width:180px" />
           <button id="btnSaveTeam" class="ghost">保存</button>
           <button id="btnLoadTeam" class="ghost">データ取込</button>
+          <button id="btnPing" class="ghost">接続テスト</button>
         </div>
       </div>
 
@@ -67,21 +69,41 @@
           <tbody></tbody>
         </table>
       </div>
+
+      <div id="diag" class="small">
+        <b>診断ログ</b>（ここにエラー詳細が表示されます）
+      </div>
     </div>
   </div>
 
 <script>
 // ====== UI events ======
+const logBox = document.getElementById('diag');
+function log(msg){ logBox.textContent += "\n" + msg; }
+
 const teamKeyInput = document.getElementById('teamKey');
 teamKeyInput.value = localStorage.getItem('TEAM_KEY') || '';
 document.getElementById('btnSaveTeam').addEventListener('click', () => {
   localStorage.setItem('TEAM_KEY', (teamKeyInput.value || '').trim());
   alert('チームキーを保存しました。');
+  log('teamKey saved: ' + (teamKeyInput.value||''));
 });
 document.getElementById('btnLoadTeam').addEventListener('click', () => {
   teamKeyInput.value = localStorage.getItem('TEAM_KEY') || '';
   alert('保存済みのチームキーを読み込みました。');
 });
+document.getElementById('btnPing').addEventListener('click', async () => {
+  try{
+    const k = (teamKeyInput.value||'').trim(); if(!k) return alert('先にチームキーを設定してください');
+    const info = await supa.ping(k);
+    alert('接続OK: payments件数=' + info.count);
+    log('ping ok: ' + JSON.stringify(info));
+  }catch(e){
+    alert('接続エラー: ' + (e.message||e));
+    log('ping error: ' + (e.message||e));
+  }
+});
+
 function getTeamKey() {
   const k = (teamKeyInput.value || '').trim();
   if (!k) { alert('先にチームキーを設定してください'); throw new Error('no team key'); }
@@ -99,8 +121,9 @@ document.getElementById('btnImport').addEventListener('click', async () => {
     if (importedPaymentsFile){ const n = await supa.importPaymentXlsx(importedPaymentsFile, teamKey); msg.push(`Payments: ${n}件`); }
     if (importedSalesFile){ const n = await supa.importSalesXlsx(importedSalesFile, teamKey); msg.push(`Sales: ${n}件`); }
     alert(msg.length ? msg.join('\n') : '取込対象がありません');
+    log('import done: ' + msg.join(', '));
   } catch (e) {
-    console.error(e); alert('取込でエラーが発生しました。Consoleを確認してください。');
+    alert('取込エラー: ' + (e.message||e)); log('import error: ' + (e.message||e));
   }
 });
 
@@ -111,9 +134,10 @@ document.getElementById('btnSearch').addEventListener('click', async () => {
     if (!paymentNo) { alert('支払い番号を入力してください'); return; }
     const teamKey = getTeamKey();
     const jans = await supa.getJANsByPaymentNo(paymentNo, teamKey);
+    log('jans: ' + JSON.stringify(jans));
     await renderResult(paymentNo, jans, teamKey);
   } catch (e) {
-    console.error(e); alert('検索でエラーが発生しました。Consoleを確認してください。');
+    alert('検索エラー: ' + (e.message||e)); log('search error: ' + (e.message||e));
   }
 });
 document.getElementById('btnClear').addEventListener('click', () => {
@@ -121,6 +145,7 @@ document.getElementById('btnClear').addEventListener('click', () => {
   document.querySelector('#tbl tbody').innerHTML='';
   document.getElementById('summary').innerHTML='';
 });
+
 document.getElementById('btnExport').addEventListener('click', async () => {
   try {
     const teamKey = getTeamKey();
@@ -128,8 +153,9 @@ document.getElementById('btnExport').addEventListener('click', async () => {
     supa.downloadWorkbook(wb, 'sales_data_export.xlsx');
     const wb2 = await supa.exportPaymentsWorkbook(teamKey);
     supa.downloadWorkbook(wb2, 'payment_jan_export.xlsx');
+    log('export ok');
   } catch (e) {
-    console.error(e); alert('エクスポートでエラーが発生しました。');
+    alert('エクスポートエラー: ' + (e.message||e)); log('export error: ' + (e.message||e));
   }
 });
 
