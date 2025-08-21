@@ -1,33 +1,20 @@
-
 <!DOCTYPE html>
 <html lang="ja">
-  <script>
-function ensureGate() {
-  const pass = prompt("Enter password:");
-  if (pass !== "team-pass-2025") {
-  window.location.href = "denied.html";
-}
-  }
-ensureGate();
-</script>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Max｜JAN検索フロント（Supabase版）</title>
+  <title>Max｜JAN検索フロント（Supabase, password gate）</title>
   <link rel="stylesheet" href="./assets/css/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./assets/js/supa.js"></script>
 </head>
 <body>
   <div class="container">
     <div class="card">
-      <div class="authbar">
-        <span id="userEmail" class="small"></span>
-      </div>
       <h1>Max（フロント）Supabase同期</h1>
       <p class="small">
-        初回は右上の<b>GitHubログイン</b>の上で、チームキーを設定してください（同じキーのユーザー同士で共有）。
+        右側で <b>チームキー</b> を設定してから使ってください。<br>
         旧Excel（<kbd>payment_jan_export.xlsx</kbd> / <kbd>sales_data_export.xlsx</kbd>）はこのページで取り込めます。
       </p>
 
@@ -40,21 +27,30 @@ ensureGate();
           <label class="badge">チームキー</label>
           <input id="teamKey" placeholder="例: TEAM-2025" style="width:180px" />
           <button id="btnSaveTeam" class="ghost">保存</button>
-          <label class="badge">データ取込</label>
-          <input type="file" id="importPayments" accept=".xlsx,.xls" title="payment_jan_export.xlsx" />
-          <input type="file" id="importSales" accept=".xlsx,.xls" title="sales_data_export.xlsx" />
-          <button id="btnImport" class="primary">取込</button>
+          <button id="btnLoadTeam" class="ghost">データ取込</button>
         </div>
       </div>
 
       <hr/>
 
       <div class="row">
-        <div class="col-6">
+        <div class="col-12">
+          <input type="file" id="importPayments" accept=".xlsx,.xls" title="payment_jan_export.xlsx" />
+        </div>
+        <div class="col-12">
+          <input type="file" id="importSales" accept=".xlsx,.xls" title="sales_data_export.xlsx" />
+        </div>
+        <div class="col-12">
+          <button id="btnImport" class="primary">取込</button>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:16px;">
+        <div class="col-8">
           <label>支払い番号で検索</label>
           <input id="paymentNo" placeholder="例: P-2025-00123" />
         </div>
-        <div class="col-6" style="display:flex; align-items:end;">
+        <div class="col-4" style="display:flex; align-items:end; gap:8px;">
           <button id="btnSearch" class="primary">検索</button>
           <button id="btnClear" class="ghost">クリア</button>
           <button id="btnExport" class="ghost">全データExcel</button>
@@ -75,35 +71,16 @@ ensureGate();
   </div>
 
 <script>
-// Auth UI
-const userEmailEl = document.getElementById('userEmail');
-const btnGithub = document.getElementById('btnGithub');
-const btnLogout = document.getElementById('btnLogout');
-supa.onAuthStateChange(async (event, session) => { renderAuth(session); });
-renderAuth();
-
-async function renderAuth() {
-  const user = await supa.getUser();
-  if (user) {
-    userEmailEl.textContent = user.email || '(ログイン済み)';
-    btnGithub.classList.add('hidden');
-    btnLogout.classList.remove('hidden');
-  } else {
-    userEmailEl.textContent = '未ログイン';
-    btnGithub.classList.remove('hidden');
-    btnLogout.classList.add('hidden');
-  }
-}
-
-btnGithub.addEventListener('click', () => supa.signInWithGithub());
-btnLogout.addEventListener('click', () => supa.signOut());
-
-// Team key handling (simple multi-tenant)
+// ====== UI events ======
 const teamKeyInput = document.getElementById('teamKey');
 teamKeyInput.value = localStorage.getItem('TEAM_KEY') || '';
 document.getElementById('btnSaveTeam').addEventListener('click', () => {
-  localStorage.setItem('TEAM_KEY', teamKeyInput.value.trim());
+  localStorage.setItem('TEAM_KEY', (teamKeyInput.value || '').trim());
   alert('チームキーを保存しました。');
+});
+document.getElementById('btnLoadTeam').addEventListener('click', () => {
+  teamKeyInput.value = localStorage.getItem('TEAM_KEY') || '';
+  alert('保存済みのチームキーを読み込みました。');
 });
 function getTeamKey() {
   const k = (teamKeyInput.value || '').trim();
@@ -116,20 +93,28 @@ let importedPaymentsFile=null, importedSalesFile=null;
 document.getElementById('importPayments').addEventListener('change', e => importedPaymentsFile = e.target.files[0] || null);
 document.getElementById('importSales').addEventListener('change', e => importedSalesFile = e.target.files[0] || null);
 document.getElementById('btnImport').addEventListener('click', async () => {
-  const teamKey = getTeamKey();
-  let msg=[];
-  if (importedPaymentsFile){ const n = await supa.importPaymentXlsx(importedPaymentsFile, teamKey); msg.push(`Payments: ${n}件`); }
-  if (importedSalesFile){ const n = await supa.importSalesXlsx(importedSalesFile, teamKey); msg.push(`Sales: ${n}件`); }
-  alert(msg.length ? msg.join('\n') : '取込対象がありません');
+  try {
+    const teamKey = getTeamKey();
+    let msg=[];
+    if (importedPaymentsFile){ const n = await supa.importPaymentXlsx(importedPaymentsFile, teamKey); msg.push(`Payments: ${n}件`); }
+    if (importedSalesFile){ const n = await supa.importSalesXlsx(importedSalesFile, teamKey); msg.push(`Sales: ${n}件`); }
+    alert(msg.length ? msg.join('\n') : '取込対象がありません');
+  } catch (e) {
+    console.error(e); alert('取込でエラーが発生しました。Consoleを確認してください。');
+  }
 });
 
 // Search
 document.getElementById('btnSearch').addEventListener('click', async () => {
-  const paymentNo = document.getElementById('paymentNo').value.trim();
-  if (!paymentNo) { alert('支払い番号を入力してください'); return; }
-  const teamKey = getTeamKey();
-  const jans = await supa.getJANsByPaymentNo(paymentNo, teamKey);
-  await renderResult(paymentNo, jans, teamKey);
+  try {
+    const paymentNo = document.getElementById('paymentNo').value.trim();
+    if (!paymentNo) { alert('支払い番号を入力してください'); return; }
+    const teamKey = getTeamKey();
+    const jans = await supa.getJANsByPaymentNo(paymentNo, teamKey);
+    await renderResult(paymentNo, jans, teamKey);
+  } catch (e) {
+    console.error(e); alert('検索でエラーが発生しました。Consoleを確認してください。');
+  }
 });
 document.getElementById('btnClear').addEventListener('click', () => {
   document.getElementById('paymentNo').value='';
@@ -137,11 +122,15 @@ document.getElementById('btnClear').addEventListener('click', () => {
   document.getElementById('summary').innerHTML='';
 });
 document.getElementById('btnExport').addEventListener('click', async () => {
-  const teamKey = getTeamKey();
-  const wb = await supa.exportSalesWorkbook(teamKey); // include sales
-  supa.downloadWorkbook(wb, 'sales_data_export.xlsx');
-  const wb2 = await supa.exportPaymentsWorkbook(teamKey);
-  supa.downloadWorkbook(wb2, 'payment_jan_export.xlsx');
+  try {
+    const teamKey = getTeamKey();
+    const wb = await supa.exportSalesWorkbook(teamKey);
+    supa.downloadWorkbook(wb, 'sales_data_export.xlsx');
+    const wb2 = await supa.exportPaymentsWorkbook(teamKey);
+    supa.downloadWorkbook(wb2, 'payment_jan_export.xlsx');
+  } catch (e) {
+    console.error(e); alert('エクスポートでエラーが発生しました。');
+  }
 });
 
 async function renderResult(paymentNo, jans, teamKey) {
