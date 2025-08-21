@@ -1,8 +1,8 @@
 
 // Minimal Supabase wrapper
 // Fill these with your project values (or use environment injection in a build step)
-const SUPABASE_URL = window.__SUPABASE_URL__ || "https://YOUR-PROJECT.supabase.co";
-const SUPABASE_ANON_KEY = window.__SUPABASE_ANON_KEY__ || "YOUR-ANON-PUBLIC-KEY";
+const SUPABASE_URL = window.__SUPABASE_URL__ || "https://fmcmgkerzisiewcuexxr.supabase.co";
+const SUPABASE_ANON_KEY = window.__SUPABASE_ANON_KEY__ || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZtY21na2VyemlzaWV3Y3VleHhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2NzMzMDAsImV4cCI6MjA3MTI0OTMwMH0.Z-X9zoEZ0I80hRJzC-qQPK4Lnr9-3dt1SWN3NVZvkXA";
 
 // You can host on GitHub Pages; anon key is public by design. Use RLS to protect data.
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
