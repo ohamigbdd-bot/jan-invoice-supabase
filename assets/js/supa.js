@@ -52,41 +52,85 @@ async function getSalesByJAN(jan, teamKey){
     return data || [];
   }catch(e){ throw wrapErr(e); }
 }
-
 async function importPaymentXlsx(file, teamKey){
-  try{
-    const data = await file.arrayBuffer();
-    const wb = XLSX.read(data);
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-    const recs = [];
-    for (let i=1;i<json.length;i++){
-      const row=json[i]; if(!row) continue;
-      const paymentNo=String(row[0]||'').trim();
-      const janRaw=String(row[1]||'').trim();
-      if(!paymentNo||!janRaw) continue;
-      janRaw.split(/\s*\n\s*/).forEach(j => { if(j) recs.push({paymentNo, jan:j}); });
+  const data = await file.arrayBuffer();
+  const wb = XLSX.read(data);
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+  if (!rows.length) return 0;
+
+  const headers = rows[0].map(h => String(h).trim().toLowerCase());
+  const find = (alts) => {
+    for (const a of alts) {
+      const i = headers.indexOf(a);
+      if (i >= 0) return i;
     }
-    if (recs.length) await addPayments(recs, teamKey);
-    return recs.length;
-  }catch(e){ throw wrapErr(e); }
+    return -1;
+  };
+
+  // ヘッダ候補（日本語/英語）
+  const iPay  = find(["支払い番号","支払番号","payment_no","paymentno","payment"]);
+  const iJan  = find(["janコード","janｺｰﾄﾞ","jan","jancode"]);
+
+  if (iPay < 0 || iJan < 0) {
+    throw new Error("支払ファイルのヘッダが想定外です。必要: 支払い番号, JANコード");
+  }
+
+  const recs = [];
+  for (let r = 1; r < rows.length; r++){
+    const row = rows[r] || [];
+    const paymentNo = String(row[iPay]||"").trim();
+    let janCell = String(row[iJan]||"").trim();
+    if (!paymentNo || !janCell) continue;
+    // セル内に改行で複数JANがある想定も対応
+    janCell.split(/\s*\n\s*/).forEach(j => { if (j) recs.push({ paymentNo, jan: j.trim() }); });
+  }
+  if (recs.length) await addPayments(recs, teamKey);
+  return recs.length;
 }
+
+// ---- 置き換え: 売上ファイルの取り込み（ヘッダ名で自動マッピング）----
 async function importSalesXlsx(file, teamKey){
-  try{
-    const data = await file.arrayBuffer();
-    const wb = XLSX.read(data);
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-    const recs = [];
-    for(let i=1;i<json.length;i++){
-      const [jan,salesNo,partner,amount]=json[i]||[];
-      const janS=String(jan||'').trim(); if(!janS) continue;
-      recs.push({ jan:janS, salesNo:String(salesNo||'').trim(), partner:String(partner||'').trim(), amount:Number(amount||0) });
+  const data = await file.arrayBuffer();
+  const wb = XLSX.read(data);
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+  if (!rows.length) return 0;
+
+  const headers = rows[0].map(h => String(h).trim().toLowerCase());
+  const find = (alts) => {
+    for (const a of alts) {
+      const i = headers.indexOf(a);
+      if (i >= 0) return i;
     }
-    if (recs.length) await addSales(recs, teamKey);
-    return recs.length;
-  }catch(e){ throw wrapErr(e); }
+    return -1;
+  };
+
+  // あなたのファイルに合う候補を含めています
+  const iJan     = find(["janコード","janｺｰﾄﾞ","jan","jancode"]);
+  const iSales   = find(["売上番号","salesno","sales_no","salesid","sales id"]);
+  const iPartner = find(["取引先","client","partner","customer"]);
+  const iAmount  = find(["金額","total","amount"]);  // 合計金額=total を使用
+
+  if (iJan<0 || iSales<0 || iPartner<0 || iAmount<0) {
+    throw new Error("売上ファイルのヘッダが想定外です。必要: JAN/売上番号/取引先/金額(=total)");
+  }
+
+  const recs = [];
+  for (let r = 1; r < rows.length; r++){
+    const row = rows[r] || [];
+    const jan     = String(row[iJan]||"").trim();
+    const salesNo = String(row[iSales]||"").trim();
+    const partner = String(row[iPartner]||"").trim();
+    // 金額のカンマや通貨記号を除去して数値化
+    const amount  = Number(String(row[iAmount]||"").replace(/[¥￥,]/g,"").trim() || 0);
+    if (!jan) continue;
+    recs.push({ jan, salesNo, partner, amount });
+  }
+  if (recs.length) await addSales(recs, teamKey);
+  return recs.length;
 }
+
 
 async function exportPaymentsWorkbook(teamKey){
   try{
