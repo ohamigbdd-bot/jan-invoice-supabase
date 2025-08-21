@@ -5,10 +5,9 @@
 function ensureGate() {
   const pass = prompt("Enter password:");
   if (pass !== "team-pass-2025") {
-    alert("Access denied");
-    window.stop(); // これで処理を止める
-  }
+  window.location.href = "denied.html";
 }
+  }
 ensureGate();
 </script>
 <head>
