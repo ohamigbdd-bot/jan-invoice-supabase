@@ -10,13 +10,14 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 
 async function signInWithGithub() {
-  const { data, error } = await sb.auth.signInWithOAuth({ provider: 'github' });
+  // GitHub Pages の公開URL（プロジェクトのベース）に戻す
+  const APP_BASE = "https://ohamigbdd-bot.github.io/jan-invoice-supabase/"; // ←あなたの公開URL
+  const { data, error } = await sb.auth.signInWithOAuth({
+    provider: 'github',
+    options: { redirectTo: APP_BASE }
+  });
   if (error) alert(error.message);
 }
-async function signOut() { await sb.auth.signOut(); window.location.reload(); }
-function onAuthStateChange(cb) { return sb.auth.onAuthStateChange(cb); }
-async function getUser() { const { data } = await sb.auth.getUser(); return data.user; }
-
 // Data helpers
 async function addPayments(records, teamKey) {
   const rows = records.map(r => ({ payment_no: r.paymentNo, jan: r.jan, team_key: teamKey }));
