@@ -100,7 +100,7 @@
 <script>
 // ====== UI events ======
 const teamKeyInput = document.getElementById('teamKey');
-teamKeyInput.value = localStorage.getItem('TEAM_KEY') || '';
+teamKeyInput.value = "";  // <= ここを空文字に固定
 document.getElementById('btnSaveTeam').addEventListener('click', () => {
   localStorage.setItem('TEAM_KEY', (teamKeyInput.value || '').trim());
   alert('チームキーを保存しました。');
