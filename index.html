@@ -1,0 +1,177 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Max｜JAN検索フロント（Supabase版）</title>
+  <link rel="stylesheet" href="./assets/css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="./assets/js/supa.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="authbar">
+        <span id="userEmail" class="small"></span>
+        <button id="btnGithub">GitHubでログイン</button>
+        <button id="btnLogout" class="ghost hidden">ログアウト</button>
+      </div>
+      <h1>Max（フロント）Supabase同期</h1>
+      <p class="small">
+        初回は右上の<b>GitHubログイン</b>の上で、チームキーを設定してください（同じキーのユーザー同士で共有）。
+        旧Excel（<kbd>payment_jan_export.xlsx</kbd> / <kbd>sales_data_export.xlsx</kbd>）はこのページで取り込めます。
+      </p>
+
+      <div class="flex" style="justify-content: space-between;">
+        <div class="flex">
+          <a href="./pages/salesDB.html"><button>売上登録へ</button></a>
+          <a href="./pages/payment.html"><button>支払登録へ</button></a>
+        </div>
+        <div class="flex">
+          <label class="badge">チームキー</label>
+          <input id="teamKey" placeholder="例: TEAM-2025" style="width:180px" />
+          <button id="btnSaveTeam" class="ghost">保存</button>
+          <label class="badge">データ取込</label>
+          <input type="file" id="importPayments" accept=".xlsx,.xls" title="payment_jan_export.xlsx" />
+          <input type="file" id="importSales" accept=".xlsx,.xls" title="sales_data_export.xlsx" />
+          <button id="btnImport" class="primary">取込</button>
+        </div>
+      </div>
+
+      <hr/>
+
+      <div class="row">
+        <div class="col-6">
+          <label>支払い番号で検索</label>
+          <input id="paymentNo" placeholder="例: P-2025-00123" />
+        </div>
+        <div class="col-6" style="display:flex; align-items:end;">
+          <button id="btnSearch" class="primary">検索</button>
+          <button id="btnClear" class="ghost">クリア</button>
+          <button id="btnExport" class="ghost">全データExcel</button>
+        </div>
+      </div>
+
+      <div id="results" class="card" style="margin-top:16px;">
+        <h2>検索結果</h2>
+        <div id="summary"></div>
+        <table class="table" id="tbl">
+          <thead>
+            <tr><th>JAN</th><th>売上番号</th><th>取引先</th><th>金額（同一売上番号で合算）</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+<script>
+// Auth UI
+const userEmailEl = document.getElementById('userEmail');
+const btnGithub = document.getElementById('btnGithub');
+const btnLogout = document.getElementById('btnLogout');
+supa.onAuthStateChange(async (event, session) => { renderAuth(session); });
+renderAuth();
+
+async function renderAuth() {
+  const user = await supa.getUser();
+  if (user) {
+    userEmailEl.textContent = user.email || '(ログイン済み)';
+    btnGithub.classList.add('hidden');
+    btnLogout.classList.remove('hidden');
+  } else {
+    userEmailEl.textContent = '未ログイン';
+    btnGithub.classList.remove('hidden');
+    btnLogout.classList.add('hidden');
+  }
+}
+
+btnGithub.addEventListener('click', () => supa.signInWithGithub());
+btnLogout.addEventListener('click', () => supa.signOut());
+
+// Team key handling (simple multi-tenant)
+const teamKeyInput = document.getElementById('teamKey');
+teamKeyInput.value = localStorage.getItem('TEAM_KEY') || '';
+document.getElementById('btnSaveTeam').addEventListener('click', () => {
+  localStorage.setItem('TEAM_KEY', teamKeyInput.value.trim());
+  alert('チームキーを保存しました。');
+});
+function getTeamKey() {
+  const k = (teamKeyInput.value || '').trim();
+  if (!k) { alert('先にチームキーを設定してください'); throw new Error('no team key'); }
+  return k;
+}
+
+// Import
+let importedPaymentsFile=null, importedSalesFile=null;
+document.getElementById('importPayments').addEventListener('change', e => importedPaymentsFile = e.target.files[0] || null);
+document.getElementById('importSales').addEventListener('change', e => importedSalesFile = e.target.files[0] || null);
+document.getElementById('btnImport').addEventListener('click', async () => {
+  const teamKey = getTeamKey();
+  let msg=[];
+  if (importedPaymentsFile){ const n = await supa.importPaymentXlsx(importedPaymentsFile, teamKey); msg.push(`Payments: ${n}件`); }
+  if (importedSalesFile){ const n = await supa.importSalesXlsx(importedSalesFile, teamKey); msg.push(`Sales: ${n}件`); }
+  alert(msg.length ? msg.join('\n') : '取込対象がありません');
+});
+
+// Search
+document.getElementById('btnSearch').addEventListener('click', async () => {
+  const paymentNo = document.getElementById('paymentNo').value.trim();
+  if (!paymentNo) { alert('支払い番号を入力してください'); return; }
+  const teamKey = getTeamKey();
+  const jans = await supa.getJANsByPaymentNo(paymentNo, teamKey);
+  await renderResult(paymentNo, jans, teamKey);
+});
+document.getElementById('btnClear').addEventListener('click', () => {
+  document.getElementById('paymentNo').value='';
+  document.querySelector('#tbl tbody').innerHTML='';
+  document.getElementById('summary').innerHTML='';
+});
+document.getElementById('btnExport').addEventListener('click', async () => {
+  const teamKey = getTeamKey();
+  const wb = await supa.exportSalesWorkbook(teamKey); // include sales
+  supa.downloadWorkbook(wb, 'sales_data_export.xlsx');
+  const wb2 = await supa.exportPaymentsWorkbook(teamKey);
+  supa.downloadWorkbook(wb2, 'payment_jan_export.xlsx');
+});
+
+async function renderResult(paymentNo, jans, teamKey) {
+  const tbody = document.querySelector('#tbl tbody');
+  tbody.innerHTML = '';
+  let summaryHtml = '';
+  if (!jans.length) {
+    summaryHtml = `<p class="error">支払い番号「${paymentNo}」に紐づくJANが見つかりませんでした。</p>`;
+    document.getElementById('summary').innerHTML = summaryHtml;
+    return;
+  }
+  summaryHtml = `<p>支払い番号 <b>${paymentNo}</b> に登録された JAN（${jans.length}件）:</p><p><code>${jans.join(', ')}</code></p>`;
+
+  const agg = new Map();
+  for (const jan of jans) {
+    const rows = await supa.getSalesByJAN(jan, teamKey);
+    for (const r of rows) {
+      const key = r.sales_no || '(未設定)';
+      if (!agg.has(key)) agg.set(key, { salesNo:key, partner:r.partner||'', amount:0, jans:new Set() });
+      const x = agg.get(key);
+      x.amount += Number(r.amount || 0);
+      x.jans.add(jan);
+    }
+  }
+
+  if (agg.size === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" class="small">該当する売上データが見つかりませんでした。</td></tr>`;
+  } else {
+    for (const [salesNo, obj] of agg.entries()) {
+      const jansInRow = Array.from(obj.jans).join(', ');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${jansInRow}</td><td>${salesNo}</td><td>${obj.partner}</td><td style="text-align:right;">${obj.amount.toLocaleString()}</td>`;
+      tbody.appendChild(tr);
+    }
+  }
+  document.getElementById('summary').innerHTML = summaryHtml;
+}
+</script>
+</body>
+</html>

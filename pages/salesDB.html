@@ -1,0 +1,99 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>売上登録（Supabase）</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="../assets/js/supa.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="authbar">
+        <span id="userEmail" class="small"></span>
+        <a href="../index.html"><button>← Maxへ</button></a>
+      </div>
+      <h1>売上登録（Supabase）</h1>
+      <div class="row">
+        <div class="col-4">
+          <label>チームキー</label>
+          <input id="teamKey" placeholder="TEAM-2025"/>
+        </div>
+        <div class="col-4">
+          <label>JANコード</label>
+          <input id="jan" placeholder="13桁"/>
+        </div>
+        <div class="col-4">
+          <label>売上番号</label>
+          <input id="salesNo" placeholder="例: S-2025-00077"/>
+        </div>
+        <div class="col-4">
+          <label>取引先</label>
+          <input id="partner" placeholder="例: ABC商事"/>
+        </div>
+        <div class="col-4">
+          <label>金額</label>
+          <input id="amount" type="number" placeholder="0" />
+        </div>
+      </div>
+      <div class="flex" style="margin-top:12px;">
+        <button id="btnSave" class="primary">保存</button>
+        <button id="btnDelete" class="ghost">この売上番号のデータ削除</button>
+        <button id="btnExport" class="ghost">Excel エクスポート</button>
+      </div>
+      <div id="msg" class="small" style="margin-top:8px;"></div>
+
+      <hr/>
+      <h2>一括インポート（任意）</h2>
+      <p class="small">テンプレ（UPLOAD_TEMP.xlsx）や <kbd>sales_data_export.xlsx</kbd> を読み込めます。</p>
+      <input type="file" id="fileSales" accept=".xlsx,.xls" />
+      <button id="btnImport">取込</button>
+      <div id="impMsg" class="small"></div>
+    </div>
+  </div>
+<script>
+(async () => {
+  const u = await supa.getUser();
+  document.getElementById('userEmail').textContent = u ? (u.email||'') : '未ログイン（indexでログインしてください）';
+})();
+
+document.getElementById('btnSave').addEventListener('click', async () => {
+  const teamKey = (document.getElementById('teamKey').value || localStorage.getItem('TEAM_KEY') || '').trim();
+  const jan = document.getElementById('jan').value.trim();
+  const salesNo = document.getElementById('salesNo').value.trim();
+  const partner = document.getElementById('partner').value.trim();
+  const amount = Number(document.getElementById('amount').value || 0);
+  if (!teamKey){ alert('チームキーを入力'); return; }
+  if (!jan || !salesNo) { alert('JANと売上番号は必須です'); return; }
+  await supa.addSales([{ jan, salesNo, partner, amount }], teamKey);
+  document.getElementById('msg').innerHTML = '<span class="success">保存しました。</span>';
+});
+document.getElementById('btnDelete').addEventListener('click', async () => {
+  const teamKey = (document.getElementById('teamKey').value || localStorage.getItem('TEAM_KEY') || '').trim();
+  const salesNo = document.getElementById('salesNo').value.trim();
+  if (!teamKey){ alert('チームキーを入力'); return; }
+  if (!salesNo) { alert('売上番号を入力してください'); return; }
+  await supa.deleteSalesBySalesNo(salesNo, teamKey);
+  document.getElementById('msg').innerHTML = '<span class="success">削除しました。</span>';
+});
+document.getElementById('btnExport').addEventListener('click', async () => {
+  const teamKey = (document.getElementById('teamKey').value || localStorage.getItem('TEAM_KEY') || '').trim();
+  if (!teamKey){ alert('チームキーを入力'); return; }
+  const wb = await supa.exportSalesWorkbook(teamKey);
+  supa.downloadWorkbook(wb, 'sales_data_export.xlsx');
+});
+document.getElementById('btnImport').addEventListener('click', async () => {
+  const teamKey = (document.getElementById('teamKey').value || localStorage.getItem('TEAM_KEY') || '').trim();
+  if (!teamKey){ alert('チームキーを入力'); return; }
+  const file = document.getElementById('fileSales').files[0];
+  if (!file) { alert('ファイルを選択してください'); return; }
+  const n = await supa.importSalesXlsx(file, teamKey);
+  document.getElementById('impMsg').innerHTML = `<span class="success">${n}件取り込みました。</span>`;
+});
+</script>
+</body>
+</html>

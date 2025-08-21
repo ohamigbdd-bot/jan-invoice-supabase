@@ -1,0 +1,75 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>支払登録（Supabase）</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="../assets/js/supa.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="authbar">
+        <span id="userEmail" class="small"></span>
+        <a href="../index.html"><button>← Maxへ</button></a>
+      </div>
+      <h1>支払い番号 × JAN 登録（Supabase）</h1>
+      <div class="row">
+        <div class="col-6">
+          <label>チームキー</label>
+          <input id="teamKey" placeholder="TEAM-2025"/>
+        </div>
+        <div class="col-6">
+          <label>支払い番号</label>
+          <input id="paymentNo" placeholder="例: P-2025-00123"/>
+        </div>
+        <div class="col-12">
+          <label>JANコード（13桁, 複数可, 改行で区切る）</label>
+          <textarea id="jans" rows="5" placeholder="4901234567890\n4909876543210"></textarea>
+        </div>
+      </div>
+      <div class="flex" style="margin-top:12px;">
+        <button id="btnSave" class="primary">保存</button>
+        <button id="btnDelete" class="ghost">この支払い番号の紐づき削除</button>
+        <button id="btnExport" class="ghost">Excel エクスポート</button>
+      </div>
+      <div id="msg" class="small" style="margin-top:8px;"></div>
+    </div>
+  </div>
+<script>
+(async () => {
+  const u = await supa.getUser();
+  document.getElementById('userEmail').textContent = u ? (u.email||'') : '未ログイン（indexでログインしてください）';
+})();
+
+document.getElementById('btnSave').addEventListener('click', async () => {
+  const teamKey = (document.getElementById('teamKey').value || localStorage.getItem('TEAM_KEY') || '').trim();
+  const paymentNo = document.getElementById('paymentNo').value.trim();
+  const jans = document.getElementById('jans').value.split(/\n/).map(s => s.trim()).filter(Boolean);
+  if (!teamKey){ alert('チームキーを入力'); return; }
+  if (!paymentNo || jans.length === 0) { alert('入力を確認してください'); return; }
+  const recs = jans.map(j => ({ paymentNo, jan: j }));
+  await supa.addPayments(recs, teamKey);
+  document.getElementById('msg').innerHTML = '<span class="success">保存しました。</span>';
+});
+document.getElementById('btnDelete').addEventListener('click', async () => {
+  const teamKey = (document.getElementById('teamKey').value || localStorage.getItem('TEAM_KEY') || '').trim();
+  const paymentNo = document.getElementById('paymentNo').value.trim();
+  if (!teamKey){ alert('チームキーを入力'); return; }
+  if (!paymentNo) { alert('支払い番号を入力してください'); return; }
+  await supa.deleteByPaymentNo(paymentNo, teamKey);
+  document.getElementById('msg').innerHTML = '<span class="success">削除しました。</span>';
+});
+document.getElementById('btnExport').addEventListener('click', async () => {
+  const teamKey = (document.getElementById('teamKey').value || localStorage.getItem('TEAM_KEY') || '').trim();
+  if (!teamKey){ alert('チームキーを入力'); return; }
+  const wb = await supa.exportPaymentsWorkbook(teamKey);
+  supa.downloadWorkbook(wb, 'payment_jan_export.xlsx');
+});
+</script>
+</body>
+</html>
