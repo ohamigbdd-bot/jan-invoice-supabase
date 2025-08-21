@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<title>パスワード確認ツール</title>
+<body style="font-family:system-ui;max-width:680px;margin:40px auto;padding:20px;line-height:1.6">
+<h2>パスワード確認ツール（ローカル診断用）</h2>
+<p>ここに入力した値を <code>trim()</code> + <code>normalize('NFKC')</code> して SHA-256 を計算し、
+設定されたハッシュと一致するかを表示します。GitHub Pages に一時配置して確認してください。</p>
+<input id="pw" placeholder="ここに入力" style="width:100%;padding:8px" />
+<button id="btn">チェック</button>
+<pre id="out" style="background:#f3f5f7;padding:12px;border-radius:8px"></pre>
+<script>
+const TARGET_HASH = "35575198419c62d34e5fbda6d6567c824ae33cf5bf05214945e6ed2c92dbdf8d"; // ohamikeiri
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+}
+document.getElementById('btn').onclick = async () => {
+  const raw = document.getElementById('pw').value;
+  const norm = raw.trim().normalize('NFKC');
+  const hex = await sha256Hex(norm);
+  const ok = (hex === TARGET_HASH);
+  document.getElementById('out').textContent =
+    "入力値（正規化後）: " + JSON.stringify(norm) + "\n" +
+    "SHA-256: " + hex + "\n" +
+    "一致: " + (ok ? "YES ✅" : "NO ❌");
+};
+</script>
+</body>
+</html>
