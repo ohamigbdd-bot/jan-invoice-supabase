@@ -91,7 +91,9 @@ document.getElementById('btnImport').addEventListener('click', async () => {
   if (!teamKey){ alert('チームキーを入力'); return; }
   const file = document.getElementById('fileSales').files[0];
   if (!file) { alert('ファイルを選択してください'); return; }
-  const n = await supa.importSalesXlsx(file, teamKey);
+  const salesNo = (document.getElementById('sales_no').value||'').trim();
+  const partner = (document.getElementById('partner').value||'').trim();
+  const n = await supa.importSalesItemsXlsx(file, teamKey, salesNo, partner);
   document.getElementById('impMsg').innerHTML = `<span class="success">${n}件取り込みました。</span>`;
 });
 </script>
