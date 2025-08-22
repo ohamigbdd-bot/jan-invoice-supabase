@@ -5,10 +5,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>売上登録（Supabase）</title>
-<link rel="stylesheet" href="../assets/css/style.css" />
+<link rel="stylesheet" href="../assets/css/style.css?v=20250822b" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="../assets/js/supa.js?v=20250822a"></script>
+<script src="../assets/js/supa.js?v=20250822b"></script>
 </head>
 <body>
   <div class="container">
@@ -91,10 +91,15 @@ document.getElementById('btnImport').addEventListener('click', async () => {
   if (!teamKey){ alert('チームキーを入力'); return; }
   const file = document.getElementById('fileSales').files[0];
   if (!file) { alert('ファイルを選択してください'); return; }
-  const salesNo = (document.getElementById('sales_no').value||'').trim();
+  const salesNo = (document.getElementById('salesNo').value||'').trim();
   const partner = (document.getElementById('partner').value||'').trim();
-  const n = await supa.importSalesItemsXlsx(file, teamKey, salesNo, partner);
-  document.getElementById('impMsg').innerHTML = `<span class="success">${n}件取り込みました。</span>`;
+  try {
+    const n = await supa.importSalesItemsXlsx(file, teamKey, salesNo, partner);
+    document.getElementById('impMsg').innerHTML = `<span class="success">${n}件取り込みました。</span>`;
+  } catch(err){
+    console.error(err);
+    alert(`取込エラー: ${err.message||err}`);
+  }
 });
 </script>
 </body>
