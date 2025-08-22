@@ -127,6 +127,17 @@ function downloadWorkbook(wb, filename){
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); URL.revokeObjectURL(a.href);
 }
 
+
+// auth helpers
+async function getUser(){
+  try {
+    const { data, error } = await sb.auth.getUser();
+    if (error) return null;
+    return data?.user || null;
+  } catch(e){
+    return null;
+  }
+}
 // export
 
 // === New: importSalesItemsXlsx (ユーザーのJANCODEテンプレ対応) ===
@@ -172,7 +183,7 @@ async function importSalesItemsXlsx(file, teamKey, salesNo, partner) {
   if (recs.length) await addSales(recs, teamKey);
   return recs.length;
 }
-window.supa = { sb,
+window.supa = { sb, getUser,
   addPayments, deleteByPaymentNo, getJANsByPaymentNo,
   addSales, deleteSalesBySalesNo, getSalesByJAN,
   importPaymentXlsx, importSalesXlsx, importSalesItemsXlsx,
