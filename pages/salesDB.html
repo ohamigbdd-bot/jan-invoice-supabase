@@ -1,18 +1,14 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>売上登録（Supabase）</title>
-  <link rel="stylesheet" href="../ass/css/style.css" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <!-- cache-busting param -->
-  <script src="../ass/js/supa.js?v=20250822a"></script>
-  <style>
-    .error{color:#fca5a5}
-    .success{color:#86efac}
-  </style>
+  <script src="../assets/js/supa.js"></script>
 </head>
 <body>
   <div class="container">
@@ -33,30 +29,27 @@
         </div>
         <div class="col-4">
           <label>売上番号</label>
-          <input id="sales_no" placeholder="例: S1500000104"/>
+          <input id="salesNo" placeholder="例: S-2025-00077"/>
         </div>
-      </div>
-      <div class="row">
-        <div class="col-6">
+        <div class="col-4">
           <label>取引先</label>
-          <input id="partner" placeholder="株式会社〜"/>
+          <input id="partner" placeholder="例: ABC商事"/>
         </div>
-        <div class="col-6">
+        <div class="col-4">
           <label>金額</label>
-          <input id="amount" type="number" value="0"/>
+          <input id="amount" type="number" placeholder="0" />
         </div>
       </div>
-      <div class="row">
-        <div class="col">
-          <button id="btnSave">保存</button>
-          <button id="btnDelete">この売上番号のデータ削除</button>
-          <button id="btnExport">Excel エクスポート</button>
-          <div id="msg" class="small"></div>
-        </div>
+      <div class="flex" style="margin-top:12px;">
+        <button id="btnSave" class="primary">保存</button>
+        <button id="btnDelete" class="ghost">この売上番号のデータ削除</button>
+        <button id="btnExport" class="ghost">Excel エクスポート</button>
       </div>
+      <div id="msg" class="small" style="margin-top:8px;"></div>
 
+      <hr/>
       <h2>一括インポート（任意）</h2>
-      <p class="small">テンプレ（UPLOAD_TEMP.xlsx）や <kbd>sales_data_export.xlsx</kbd> を読み込みます。</p>
+      <p class="small">テンプレ（UPLOAD_TEMP.xlsx）や <kbd>sales_data_export.xlsx</kbd> を読み込めます。</p>
       <input type="file" id="fileSales" accept=".xlsx,.xls" />
       <button id="btnImport">取込</button>
       <div id="impMsg" class="small"></div>
@@ -64,69 +57,44 @@
   </div>
 <script>
 (async () => {
-  const u = await supa.getUser?.();
+  const u = await supa.getUser();
   document.getElementById('userEmail').textContent = u ? (u.email||'') : '未ログイン（indexでログインしてください）';
 })();
 
-function val(id){ return (document.getElementById(id).value||'').trim(); }
-
 document.getElementById('btnSave').addEventListener('click', async () => {
-  try{
-    const teamKey = val('teamKey');
-    const jan = val('jan');
-    const salesNo = val('sales_no');
-    const partner = val('partner');
-    const amount = Number(document.getElementById('amount').value||0);
-    if (!teamKey || !jan || !salesNo){ alert('チームキー/JAN/売上番号は必須'); return; }
-    await supa.addSales([{ jan, salesNo, partner, amount }], teamKey);
-    document.getElementById('msg').innerHTML = '<span class="success">保存しました。</span>';
-  }catch(e){
-    document.getElementById('msg').innerHTML = '<span class="error">保存失敗: '+(e.message||e)+'</span>';
-    console.error(e);
-  }
+  const teamKey = (document.getElementById('teamKey').value || localStorage.getItem('TEAM_KEY') || '').trim();
+  const jan = document.getElementById('jan').value.trim();
+  const salesNo = document.getElementById('salesNo').value.trim();
+  const partner = document.getElementById('partner').value.trim();
+  const amount = Number(document.getElementById('amount').value || 0);
+  if (!teamKey){ alert('チームキーを入力'); return; }
+  if (!jan || !salesNo) { alert('JANと売上番号は必須です'); return; }
+  await supa.addSales([{ jan, salesNo, partner, amount }], teamKey);
+  document.getElementById('msg').innerHTML = '<span class="success">保存しました。</span>';
 });
-
 document.getElementById('btnDelete').addEventListener('click', async () => {
-  try{
-    const teamKey = val('teamKey');
-    const salesNo = val('sales_no');
-    if (!teamKey || !salesNo){ alert('チームキー/売上番号を入力'); return; }
-    await supa.deleteSalesBySalesNo(salesNo, teamKey);
-    document.getElementById('msg').innerHTML = '<span class="success">削除しました。</span>';
-  }catch(e){
-    document.getElementById('msg').innerHTML = '<span class="error">削除失敗: '+(e.message||e)+'</span>';
-    console.error(e);
-  }
+  const teamKey = (document.getElementById('teamKey').value || localStorage.getItem('TEAM_KEY') || '').trim();
+  const salesNo = document.getElementById('salesNo').value.trim();
+  if (!teamKey){ alert('チームキーを入力'); return; }
+  if (!salesNo) { alert('売上番号を入力してください'); return; }
+  await supa.deleteSalesBySalesNo(salesNo, teamKey);
+  document.getElementById('msg').innerHTML = '<span class="success">削除しました。</span>';
 });
-
 document.getElementById('btnExport').addEventListener('click', async () => {
-  try{
-    const teamKey = val('teamKey');
-    if (!teamKey){ alert('チームキーを入力'); return; }
-    const wb = await supa.exportSalesWorkbook(teamKey);
-    supa.downloadWorkbook(wb, 'sales_data_export.xlsx');
-  }catch(e){
-    document.getElementById('msg').innerHTML = '<span class="error">エクスポート失敗: '+(e.message||e)+'</span>';
-    console.error(e);
-  }
+  const teamKey = (document.getElementById('teamKey').value || localStorage.getItem('TEAM_KEY') || '').trim();
+  if (!teamKey){ alert('チームキーを入力'); return; }
+  const wb = await supa.exportSalesWorkbook(teamKey);
+  supa.downloadWorkbook(wb, 'sales_data_export.xlsx');
 });
-
 document.getElementById('btnImport').addEventListener('click', async () => {
-  const impMsg = document.getElementById('impMsg');
-  try{
-    const teamKey = val('teamKey');
-    if (!teamKey){ alert('チームキーを入力'); return; }
-    const salesNo = val('sales_no');
-    const partner = val('partner');
-    const file = document.getElementById('fileSales').files[0];
-    if (!file){ alert('ファイルを選択してください'); return; }
-    const n = await supa.importSalesItemsXlsx(file, teamKey, salesNo, partner);
-    impMsg.innerHTML = '<span class="success">'+n+'件取り込みました。</span>';
-  }catch(e){
-    impMsg.innerHTML = '<span class="error">取込失敗: '+(e.message||e)+'</span>';
-    console.error(e);
-    alert('取込でエラー: '+(e.message||e)); // 念のため
-  }
+  const teamKey = (document.getElementById('teamKey').value || localStorage.getItem('TEAM_KEY') || '').trim();
+  if (!teamKey){ alert('チームキーを入力'); return; }
+  const file = document.getElementById('fileSales').files[0];
+  if (!file) { alert('ファイルを選択してください'); return; }
+  const salesNo = (document.getElementById('sales_no').value||'').trim();
+  const partner = (document.getElementById('partner').value||'').trim();
+  const n = await supa.importSalesItemsXlsx(file, teamKey, salesNo, partner);
+  document.getElementById('impMsg').innerHTML = `<span class="success">${n}件取り込みました。</span>`;
 });
 </script>
 </body>
