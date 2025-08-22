@@ -128,9 +128,53 @@ function downloadWorkbook(wb, filename){
 }
 
 // export
+
+// === New: importSalesItemsXlsx (ユーザーのJANCODEテンプレ対応) ===
+// Excel列: JANCODE / 商品名 / 商品數量 / 單價 / 總共價格
+async function importSalesItemsXlsx(file, teamKey, salesNo, partner) {
+  if (!salesNo) throw new Error("売上番号が空です");
+  if (!partner) throw new Error("取引先が空です");
+
+  const data = await file.arrayBuffer();
+  const wb = XLSX.read(data);
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+  if (!rows.length) return 0;
+
+  // ヘッダー探索（大小/全角半角は固定名想定のためここでは厳密一致）
+  let headerRowIdx = -1;
+  for (let i = 0; i < rows.length; i++) {
+    const r = (rows[i]||[]).map(v => String(v||"").trim());
+    const hset = new Set(r);
+    if (hset.has("JANCODE") && hset.has("商品名") && hset.has("商品數量") && hset.has("單價") && hset.has("總共價格")) {
+      headerRowIdx = i; break;
+    }
+  }
+  if (headerRowIdx === -1) throw new Error("テンプレのヘッダー行が見つかりません");
+
+  const headers = (rows[headerRowIdx]||[]).map(v => String(v||"").trim());
+  const col = (name) => headers.indexOf(name);
+  const cJAN = col("JANCODE"), cNM = col("商品名"), cQ = col("商品數量"), cP = col("單價"), cT = col("總共價格");
+  if (cJAN<0 || cQ<0 || cP<0 || cT<0) throw new Error("テンプレ列の一部を検出できません");
+
+  const recs = [];
+  for (let r = headerRowIdx+1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const jan = String(row[cJAN]||"").trim();
+    const qty = Number(String(row[cQ]||"").replace(/,/g,"").trim());
+    const price = Number(String(row[cP]||"").replace(/,/g,"").trim());
+    const total = String(row[cT]||"").toString().trim();
+    if (!jan && !qty && !price && !total) continue; // 空行スキップ
+    const amt = total ? Number(total.replace(/,/g,"")) : (isFinite(qty)&&isFinite(price) ? qty*price : 0);
+    if (!jan) continue; // JAN必須（DB設計に合わせる）
+    recs.push({ jan, salesNo, partner, amount: isFinite(amt) ? amt : 0 });
+  }
+  if (recs.length) await addSales(recs, teamKey);
+  return recs.length;
+}
 window.supa = { sb,
   addPayments, deleteByPaymentNo, getJANsByPaymentNo,
   addSales, deleteSalesBySalesNo, getSalesByJAN,
-  importPaymentXlsx, importSalesXlsx,
+  importPaymentXlsx, importSalesXlsx, importSalesItemsXlsx,
   exportPaymentsWorkbook, exportSalesWorkbook, downloadWorkbook
 };
