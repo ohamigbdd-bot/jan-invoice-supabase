@@ -34,6 +34,9 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./assets/js/supa.js"></script>
+  <script src="assets/js/supa.js?v=20250825a"></script>
+<script src="assets/js/supa_patch_getSalesSummaryByJAN.js?v=20250825a"></script>
+<script src="assets/js/index_jan_search.js?v=20250825a"></script>
 </head>
 <body>
   <script src="./assets/js/gate.js?v=20250821"></script>
@@ -96,6 +99,33 @@
       </div>
     </div>
   </div>
+<div class="card" id="janSearchCard" style="margin-top:16px;">
+  <h2>JANで売上検索（追加機能）</h2>
+  <div class="row">
+    <div class="col-6">
+      <label for="janSearchInput">JANコード</label>
+      <input id="janSearchInput" placeholder="13桁" />
+    </div>
+    <div class="col-6" style="display:flex; align-items:flex-end; gap:8px;">
+      <button id="btnJanSearch" class="primary">検索</button>
+      <span id="janSearchMsg" class="small"></span>
+    </div>
+  </div>
+
+  <div style="overflow:auto; margin-top:12px;">
+    <table class="simple" id="janSearchTable">
+      <thead>
+        <tr>
+          <th>JAN</th>
+          <th>売上番号</th>
+          <th>取引先</th>
+          <th>金額（同一売上番号で合算）</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
 
 <script>
 // ====== UI events ======
