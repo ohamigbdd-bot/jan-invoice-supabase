@@ -102,19 +102,19 @@
 <!-- JANで売上検索（追加機能） -->
 <div class="container">
   <div class="card jan-search">
-    <div class="jan-search__header">
-      <h2>JANで売上検索</h2>
-      <div class="jan-search__controls">
-        <input id="janSearchInput" class="jan-search__input" placeholder="JANコード（13桁）" />
-        <button id="btnJanSearch" class="primary">検索</button>
+    <h2 style="margin:0 0 10px;">JANで売上検索</h2>
+
+    <div class="row" style="align-items:center; gap:10px;">
+      <div class="col-8">
+        <input id="janSearchInput" class="input" placeholder="JANコード（13桁）" />
       </div>
+      <div class="col-2">
+        <button id="btnJanSearch" class="primary" style="width:100%;">検索</button>
+      </div>
+      <div class="col-2 small" id="janSearchMsg"></div>
     </div>
 
-    <div class="jan-search__status">
-      <span id="janSearchMsg" class="small"></span>
-    </div>
-
-    <div class="jan-search__tablewrap">
+    <div style="overflow:auto; margin-top:12px;">
       <table class="simple jan-search__table" id="janSearchTable">
         <thead>
           <tr>
