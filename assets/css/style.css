@@ -26,39 +26,31 @@ a{color:var(--accent)}
 .authbar{display:flex;gap:10px;align-items:center;justify-content:flex-end}
 code{background:#0e1736;padding:2px 6px;border-radius:6px;border:1px solid #223}
 .jan-search { margin-top: 24px; }
-.jan-search h2 { margin: 0; font-size: 1.15rem; line-height: 1.3; }
+.jan-title { margin: 0 0 10px; font-size: 1.15rem; line-height: 1.3; }
 
-.jan-search__header {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 12px;
+/* 上カードと同じ左寄せで安定させる */
+.jan-bar {
+  display: flex;
   align-items: center;
-  margin-bottom: 10px;
+  gap: 8px;
+  justify-content: flex-start;     /* ← これで右寄せを打ち消し */
+  margin-bottom: 8px;
 }
+.jan-input { flex: 1; min-width: 320px; padding: 8px 10px; }
+.jan-btn   { padding: 8px 14px; }
+.jan-msg   { min-width: 80px; opacity: .85; }
 
-.jan-search__controls { display: flex; gap: 8px; align-items: center; }
-.jan-search__input    { min-width: 280px; padding: 8px 10px; }
-
-.jan-search__status { min-height: 20px; margin-bottom: 6px; opacity: .8; }
-
-.jan-search__tablewrap { overflow: auto; border: 1px solid var(--border, #2b3340); border-radius: 8px; }
-.jan-search__table { width: 100%; border-collapse: collapse; }
-.jan-search__table th, .jan-search__table td { padding: 10px 12px; border-bottom: 1px solid var(--border, #2b3340); white-space: nowrap; }
-.jan-search__table thead th { background: rgba(255,255,255,0.03); position: sticky; top: 0; z-index: 1; }
+/* テーブルも上のカードと同トーン */
+.jan-tablewrap { overflow: auto; border: 1px solid var(--border, #2b3340); border-radius: 8px; }
+.jan-table { width: 100%; border-collapse: collapse; }
+.jan-table th, .jan-table td {
+  padding: 10px 12px; border-bottom: 1px solid var(--border, #2b3340); white-space: nowrap;
+}
+.jan-table thead th { background: rgba(255,255,255,0.03); }
 .text-right { text-align: right; }
 
+/* スマホ時は縦積み */
 @media (max-width: 720px) {
-  .jan-search__header { grid-template-columns: 1fr; }
-
-  .jan-search__table { width:100%; border-collapse:collapse; }
-.jan-search__table th, .jan-search__table td {
-  padding:10px 12px; border-bottom:1px solid var(--border, #2b3340); white-space:nowrap;
-}
-.jan-search__table thead th { background:rgba(255,255,255,.03); }
-.text-right { text-align:right; }
-
-/* 念のため、右寄せを打ち消し */
-.jan-search .row { justify-content:flex-start !important; }
-  .jan-search__controls { justify-content: flex-start; }
-  .jan-search__input { min-width: 0; width: 100%; }
+  .jan-bar { flex-wrap: wrap; }
+  .jan-input { min-width: 0; width: 100%; }
 }
