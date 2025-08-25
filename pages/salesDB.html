@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -7,6 +8,18 @@
   <link rel="stylesheet" href="../assets/css/style.css?v=20250825a" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script>
+    // （任意）固定のTEAM_KEYをここで指定可能
+    // window.__TEAM_KEY__ = "ohamikeiri";
+    // 既存のページやゲートが localStorage.TEAM_KEY を参照している想定のため、未設定なら補完しておく
+    (function ensureTeamKey(){
+      try {
+        if (!localStorage.getItem('TEAM_KEY')) {
+          localStorage.setItem('TEAM_KEY', (window.__TEAM_KEY__ || 'default'));
+        }
+      } catch(e){}
+    })();
+  </script>
   <script src="../assets/js/supa.js?v=20250825a"></script>
 </head>
 <body>
@@ -17,6 +30,9 @@
         <a href="../index.html"><button>← Maxへ</button></a>
       </div>
       <h1>売上登録（Supabase）</h1>
+
+      <!-- チームキー欄は撤去 -->
+
       <div class="row">
         <div class="col-4">
           <label>JANコード</label>
@@ -80,8 +96,12 @@ document.getElementById('btnImport').addEventListener('click', async () => {
   if (!file) { alert('ファイルを選択してください'); return; }
   const salesNo = (document.getElementById('salesNo').value||'').trim();
   const partner = (document.getElementById('partner').value||'').trim();
-  const n = await supa.importSalesItemsXlsx(file, undefined, salesNo, partner);
-  document.getElementById('impMsg').innerHTML = `<span class="success">${n}件取り込みました。</span>`;
+  try{
+    const n = await supa.importSalesItemsXlsx(file, undefined, salesNo, partner);
+    document.getElementById('impMsg').innerHTML = `<span class="success">${n}件取り込みました。</span>`;
+  }catch(e){
+    alert('取込エラー: ' + (e?.message || e));
+  }
 });
 </script>
 </body>
