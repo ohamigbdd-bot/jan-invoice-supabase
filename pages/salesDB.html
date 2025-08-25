@@ -1,14 +1,13 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>売上登録（Supabase）</title>
-<link rel="stylesheet" href="../assets/css/style.css?v=20250822b" />
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="../assets/js/supa.js?v=20250822b"></script>
+  <link rel="stylesheet" href="../assets/css/style.css?v=20250825a" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="../assets/js/supa.js?v=20250825a"></script>
 </head>
 <body>
   <div class="container">
@@ -19,10 +18,6 @@
       </div>
       <h1>売上登録（Supabase）</h1>
       <div class="row">
-        <div class="col-4">
-          <label>チームキー</label>
-          <input id="teamKey" placeholder="TEAM-2025"/>
-        </div>
         <div class="col-4">
           <label>JANコード</label>
           <input id="jan" placeholder="13桁"/>
@@ -62,44 +57,31 @@
 })();
 
 document.getElementById('btnSave').addEventListener('click', async () => {
-  const teamKey = (document.getElementById('teamKey').value || localStorage.getItem('TEAM_KEY') || '').trim();
   const jan = document.getElementById('jan').value.trim();
   const salesNo = document.getElementById('salesNo').value.trim();
   const partner = document.getElementById('partner').value.trim();
   const amount = Number(document.getElementById('amount').value || 0);
-  if (!teamKey){ alert('チームキーを入力'); return; }
   if (!jan || !salesNo) { alert('JANと売上番号は必須です'); return; }
-  await supa.addSales([{ jan, salesNo, partner, amount }], teamKey);
+  await supa.addSales([{ jan, salesNo, partner, amount }]);
   document.getElementById('msg').innerHTML = '<span class="success">保存しました。</span>';
 });
 document.getElementById('btnDelete').addEventListener('click', async () => {
-  const teamKey = (document.getElementById('teamKey').value || localStorage.getItem('TEAM_KEY') || '').trim();
   const salesNo = document.getElementById('salesNo').value.trim();
-  if (!teamKey){ alert('チームキーを入力'); return; }
   if (!salesNo) { alert('売上番号を入力してください'); return; }
-  await supa.deleteSalesBySalesNo(salesNo, teamKey);
+  await supa.deleteSalesBySalesNo(salesNo);
   document.getElementById('msg').innerHTML = '<span class="success">削除しました。</span>';
 });
 document.getElementById('btnExport').addEventListener('click', async () => {
-  const teamKey = (document.getElementById('teamKey').value || localStorage.getItem('TEAM_KEY') || '').trim();
-  if (!teamKey){ alert('チームキーを入力'); return; }
-  const wb = await supa.exportSalesWorkbook(teamKey);
+  const wb = await supa.exportSalesWorkbook();
   supa.downloadWorkbook(wb, 'sales_data_export.xlsx');
 });
 document.getElementById('btnImport').addEventListener('click', async () => {
-  const teamKey = (document.getElementById('teamKey').value || localStorage.getItem('TEAM_KEY') || '').trim();
-  if (!teamKey){ alert('チームキーを入力'); return; }
   const file = document.getElementById('fileSales').files[0];
   if (!file) { alert('ファイルを選択してください'); return; }
   const salesNo = (document.getElementById('salesNo').value||'').trim();
   const partner = (document.getElementById('partner').value||'').trim();
-  try {
-    const n = await supa.importSalesItemsXlsx(file, teamKey, salesNo, partner);
-    document.getElementById('impMsg').innerHTML = `<span class="success">${n}件取り込みました。</span>`;
-  } catch(err){
-    console.error(err);
-    alert(`取込エラー: ${err.message||err}`);
-  }
+  const n = await supa.importSalesItemsXlsx(file, undefined, salesNo, partner);
+  document.getElementById('impMsg').innerHTML = `<span class="success">${n}件取り込みました。</span>`;
 });
 </script>
 </body>
