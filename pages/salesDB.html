@@ -69,7 +69,7 @@
 <script>
 (async () => {
   const u = await supa.getUser();
-  document.getElementById('userEmail').textContent = u ? (u.email||'') : '未ログイン（indexでログインしてください）';
+  document.getElementById('userEmail').textContent = u ? (u.email||'') : '';
 })();
 
 document.getElementById('btnSave').addEventListener('click', async () => {
