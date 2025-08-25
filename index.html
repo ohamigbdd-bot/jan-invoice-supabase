@@ -99,27 +99,28 @@
       </div>
     </div>
   </div>
-<div class="card" id="janSearchCard" style="margin-top:16px;">
-  <h2>JANで売上検索（追加機能）</h2>
-  <div class="row">
-    <div class="col-6">
-      <label for="janSearchInput">JANコード</label>
-      <input id="janSearchInput" placeholder="13桁" />
-    </div>
-    <div class="col-6" style="display:flex; align-items:flex-end; gap:8px;">
+<!-- JANで売上検索（追加機能） -->
+<div class="card jan-search">
+  <div class="jan-search__header">
+    <h2>JANで売上検索</h2>
+    <div class="jan-search__controls">
+      <input id="janSearchInput" class="jan-search__input" placeholder="JANコード（13桁）" />
       <button id="btnJanSearch" class="primary">検索</button>
-      <span id="janSearchMsg" class="small"></span>
     </div>
   </div>
 
-  <div style="overflow:auto; margin-top:12px;">
-    <table class="simple" id="janSearchTable">
+  <div class="jan-search__status">
+    <span id="janSearchMsg" class="small"></span>
+  </div>
+
+  <div class="jan-search__tablewrap">
+    <table class="simple jan-search__table" id="janSearchTable">
       <thead>
         <tr>
-          <th>JAN</th>
-          <th>売上番号</th>
+          <th style="width: 220px;">JAN</th>
+          <th style="width: 180px;">売上番号</th>
           <th>取引先</th>
-          <th>金額（同一売上番号で合算）</th>
+          <th class="text-right" style="width: 220px;">金額（同一売上番号で合算）</th>
         </tr>
       </thead>
       <tbody></tbody>
