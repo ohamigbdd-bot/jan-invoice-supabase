@@ -14,27 +14,6 @@ function resolveTeamKey(explicit){
 }
 
 // ボタンのラベルIDは実際のものに合わせてください
-const btn = document.getElementById('btnExport');
-
-if (btn) {
-  btn.addEventListener('click', async () => {
-    btn.disabled = true;
-    const prev = btn.textContent;
-    btn.textContent = 'エクスポート中…';
-
-    try {
-      const wb = await supa.exportSalesWorkbook();   // ここで失敗しても catch で可視化
-      supa.downloadWorkbook(wb, 'sales_data_export.xlsx');
-    } catch (err) {
-      console.error('exportSalesWorkbook failed:', err);
-      alert('エクスポート失敗：' + (err?.message || String(err)));
-    } finally {
-      btn.disabled = false;
-      btn.textContent = prev;
-    }
-  });
-}
-
 
 // --- Auth helper used by pages ---
 async function getUser(){
@@ -208,24 +187,40 @@ async function exportPaymentsWorkbook(teamKey) {
 async function exportSalesWorkbook(teamKey) {
   const tk = resolveTeamKey(teamKey);
 
-  // 1発でCSVテキストを取得（1行の巨大レスポンスなので行数制限にかからない）
+  // DBに作った export_sales_csv(p_team_key text) を叩く
   const { data, error } = await sb.rpc('export_sales_csv', { p_team_key: tk });
   if (error) throw error;
-  const csv = data || '';
 
-  // 使い勝手キープ：Workbook を返す（既存の downloadWorkbook を再利用できる）
-  // SheetJS は CSV 文字列をそのまま読めます
+  const csv = (data || '').toString();
+  if (!csv.trim()) {
+    throw new Error('出力対象のデータがありません（フィルタ/RLS/team_keyの不一致の可能性）');
+  }
+
+  // CSV → Workbook に変換して既存の downloadWorkbook を再利用
   const wb = XLSX.read(csv, { type: 'string' });
   return wb;
-
-  // もし CSV で直接ダウンロードしたいなら以下でも可：
-  // const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  // const a = document.createElement('a');
-  // a.href = URL.createObjectURL(blob);
-  // a.download = `sales_${new Date().toISOString().slice(0,10)}.csv`;
-  // a.click();
-  // URL.revokeObjectURL(a.href);
 }
+const btn = document.getElementById('btnExport');
+
+if (btn) {
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    const prev = btn.textContent;
+    btn.textContent = 'エクスポート中…';
+
+    try {
+      const wb = await supa.exportSalesWorkbook();   // ここで失敗しても catch で可視化
+      supa.downloadWorkbook(wb, 'sales_data_export.xlsx');
+    } catch (err) {
+      console.error('exportSalesWorkbook failed:', err);
+      alert('エクスポート失敗：' + (err?.message || String(err)));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = prev;
+    }
+  });
+}
+
 function downloadWorkbook(wb, filename){
   const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
   const blob = new Blob([wbout], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
