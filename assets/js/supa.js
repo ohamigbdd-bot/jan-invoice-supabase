@@ -183,13 +183,24 @@ async function exportPaymentsWorkbook(teamKey) {
 }
 async function exportSalesWorkbook(teamKey) {
   const tk = resolveTeamKey(teamKey);
-  const { data, error } = await sb.from('sales').select('jan,sales_no,partner,amount').eq('team_key', tk);
+
+  // 1発でCSVテキストを取得（1行の巨大レスポンスなので行数制限にかからない）
+  const { data, error } = await sb.rpc('export_sales_csv', { p_team_key: tk });
   if (error) throw error;
-  const aoa = [['JANコード','売上番号','取引先','金額']];
-  (data||[]).forEach(r => aoa.push([r.jan, r.sales_no, r.partner, r.amount]));
-  const ws = XLSX.utils.aoa_to_sheet(aoa), wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'sales');
+  const csv = data || '';
+
+  // 使い勝手キープ：Workbook を返す（既存の downloadWorkbook を再利用できる）
+  // SheetJS は CSV 文字列をそのまま読めます
+  const wb = XLSX.read(csv, { type: 'string' });
   return wb;
+
+  // もし CSV で直接ダウンロードしたいなら以下でも可：
+  // const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  // const a = document.createElement('a');
+  // a.href = URL.createObjectURL(blob);
+  // a.download = `sales_${new Date().toISOString().slice(0,10)}.csv`;
+  // a.click();
+  // URL.revokeObjectURL(a.href);
 }
 function downloadWorkbook(wb, filename){
   const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
