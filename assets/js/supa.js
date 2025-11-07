@@ -188,58 +188,83 @@ async function exportPaymentsWorkbook(teamKey) {
 // - 画面によりIDが違っても拾えるように、候補IDを複数見る
 // - スクリプトが先に実行されても確実にバインドされる
 
-function bindExportButtons() {
-  const candidates = [
-    '#btnExport',        // 既存想定
-    '#btnContinue',      // 「継続」ボタンのIDがこれなら拾える
-    '[data-action="export-sales"]' // data属性でも拾える
-  ];
+// === Sales を XLSX でエクスポート ===
+// 1) まずは RPC export_sales_csv を使って CSV 文字列を取得
+// 2) 失敗したら SELECT で取得して XLSX を組む
+async function exportSalesWorkbook(teamKey) {
+  const tk = resolveTeamKey(teamKey);
 
-  const buttons = candidates
-    .flatMap(sel => Array.from(document.querySelectorAll(sel)))
-    .filter((el, idx, arr) => el && arr.indexOf(el) === idx);
-
-  if (buttons.length === 0) {
-    console.warn('Exportボタンが見つかりませんでした。IDやdata属性を確認してください。');
-    return;
-  }
-
-  // 既にハンドラを付けていたら重複しないようにする
-  const handler = async (e) => {
-    const btn = e.currentTarget;
-    btn.disabled = true;
-    const prev = btn.textContent || btn.value || 'Export';
-
-    // ボタンの種類に応じて表示文言を変える
-    if ('textContent' in btn) btn.textContent = 'エクスポート中…';
-    if ('value' in btn) btn.value = 'エクスポート中…';
-
-    try {
-      // ライブラリ存在チェック（未読み込みだと落ちるため）
-      if (typeof XLSX === 'undefined') {
-        throw new Error('XLSXライブラリが読み込まれていません（SheetJSのscriptタグを確認）');
+  // ヘルパ: CSV文字列→AOA(Array of Arrays)
+  const csvToAoa = (csvText) => {
+    if (!csvText) return [];
+    const lines = csvText.split(/\r?\n/);
+    return lines.filter(l => l.length > 0).map(line => {
+      // ざっくりCSVパース（ダブルクォート対応）
+      const out = [];
+      let cur = "", inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inQ) {
+          if (ch === '"') {
+            if (line[i + 1] === '"') { cur += '"'; i++; } // エスケープ ""
+            else { inQ = false; }
+          } else {
+            cur += ch;
+          }
+        } else {
+          if (ch === '"') inQ = true;
+          else if (ch === ',') { out.push(cur); cur = ""; }
+          else cur += ch;
+        }
       }
-
-      const wb = await supa.exportSalesWorkbook(); // 失敗時はcatchへ
-      supa.downloadWorkbook(wb, 'sales_data_export.xlsx');
-      console.log('Export success');
-    } catch (err) {
-      console.error('exportSalesWorkbook failed:', err);
-      alert('エクスポート失敗：' + (err?.message || String(err)));
-    } finally {
-      btn.disabled = false;
-      if ('textContent' in btn) btn.textContent = prev;
-      if ('value' in btn) btn.value = prev;
-    }
+      out.push(cur);
+      return out;
+    });
   };
 
-  // いったん既存のハンドラを外してから付け直す（重複防止）
-  buttons.forEach(btn => {
-    btn.removeEventListener('click', handler);
-    btn.addEventListener('click', handler, { passive: true });
-  });
-}
+  // ① RPC で CSV をもらう（supabase SQL の export_sales_csv）
+  try {
+    const { data, error } = await sb.rpc('export_sales_csv', { p_team_key: tk });
+    if (error) throw error;
+    const aoa = csvToAoa(data || "");
+    if (!aoa.length) {
+      // ヘッダだけ生成して空ブックを返す
+      const ws = XLSX.utils.aoa_to_sheet([['JANコード','売上番号','取引先','金額']]);
+      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'sales');
+      return wb;
+    }
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'sales');
+    return wb;
+  } catch (e) {
+    console.warn('export_sales_csv RPC failed. Fallback to SELECT.', e);
+  }
 
+  // ② フォールバック：SELECT から直接取得して XLSX 化
+  const { data: rows, error: selErr } = await sb
+    .from('sales')
+    .select('jan,sales_no,partner,amount')
+    .eq('team_key', tk)
+    .order('id', { ascending: true });
+
+  if (selErr) throw selErr;
+
+  const aoa = [['JANコード','売上番号','取引先','金額']];
+  (rows || []).forEach(r => {
+    aoa.push([
+      r.jan || '',
+      r.sales_no || '',
+      r.partner || '',
+      (r.amount != null ? Number(r.amount) : 0)
+    ]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'sales');
+  return wb;
+}
 // DOMの用意ができてからバインド
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', bindExportButtons, { once: true });
