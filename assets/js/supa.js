@@ -174,6 +174,57 @@ async function importSalesItemsXlsx(file, teamKey, salesNo, partner) {
 }
 
 // --- Exports ---
+
+function bindExportButtons() {
+  const candidates = [
+    '#btnExport',        // 既存想定
+    '#btnContinue',      // 「継続」ボタンのIDがこれなら拾える
+    '[data-action="export-sales"]' // data属性でも拾える
+  ];
+
+  const buttons = candidates
+    .flatMap(sel => Array.from(document.querySelectorAll(sel)))
+    .filter((el, idx, arr) => el && arr.indexOf(el) === idx);
+
+  if (buttons.length === 0) {
+    console.warn('Exportボタンが見つかりませんでした。IDやdata属性を確認してください。');
+    return;
+  }
+
+  const handler = async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    const prev = btn.textContent || btn.value || 'Export';
+
+    if ('textContent' in btn) btn.textContent = 'エクスポート中…';
+    if ('value' in btn) btn.value = 'エクスポート中…';
+
+    try {
+      if (typeof XLSX === 'undefined') {
+        throw new Error('XLSXライブラリが読み込まれていません（SheetJSのscriptタグを確認）');
+      }
+
+      // ★ ここを window.supa に統一
+      const wb = await window.supa.exportSalesWorkbook();
+      window.supa.downloadWorkbook(wb, 'sales_data_export.xlsx');
+      console.log('Export success');
+    } catch (err) {
+      console.error('exportSalesWorkbook failed:', err);
+      alert('エクスポート失敗：' + (err?.message || String(err)));
+    } finally {
+      btn.disabled = false;
+      if ('textContent' in btn) btn.textContent = prev;
+      if ('value' in btn) btn.value = prev;
+    }
+  };
+
+  // 重複防止で一旦外してから付け直し
+  buttons.forEach(btn => {
+    btn.removeEventListener('click', handler);
+    btn.addEventListener('click', handler, { passive: true });
+  });
+}
+
 async function exportPaymentsWorkbook(teamKey) {
   const tk = resolveTeamKey(teamKey);
   const { data, error } = await sb.from('payments').select('payment_no,jan').eq('team_key', tk);
