@@ -184,41 +184,68 @@ async function exportPaymentsWorkbook(teamKey) {
   XLSX.utils.book_append_sheet(wb, ws, 'payments');
   return wb;
 }
-async function exportSalesWorkbook(teamKey) {
-  const tk = resolveTeamKey(teamKey);
+// ==== Export ボタンの安全なバインド（DOM読み込み後） ====
+// - 画面によりIDが違っても拾えるように、候補IDを複数見る
+// - スクリプトが先に実行されても確実にバインドされる
 
-  // DBに作った export_sales_csv(p_team_key text) を叩く
-  const { data, error } = await sb.rpc('export_sales_csv', { p_team_key: tk });
-  if (error) throw error;
+function bindExportButtons() {
+  const candidates = [
+    '#btnExport',        // 既存想定
+    '#btnContinue',      // 「継続」ボタンのIDがこれなら拾える
+    '[data-action="export-sales"]' // data属性でも拾える
+  ];
 
-  const csv = (data || '').toString();
-  if (!csv.trim()) {
-    throw new Error('出力対象のデータがありません（フィルタ/RLS/team_keyの不一致の可能性）');
+  const buttons = candidates
+    .flatMap(sel => Array.from(document.querySelectorAll(sel)))
+    .filter((el, idx, arr) => el && arr.indexOf(el) === idx);
+
+  if (buttons.length === 0) {
+    console.warn('Exportボタンが見つかりませんでした。IDやdata属性を確認してください。');
+    return;
   }
 
-  // CSV → Workbook に変換して既存の downloadWorkbook を再利用
-  const wb = XLSX.read(csv, { type: 'string' });
-  return wb;
-}
-const btn = document.getElementById('btnExport');
-
-if (btn) {
-  btn.addEventListener('click', async () => {
+  // 既にハンドラを付けていたら重複しないようにする
+  const handler = async (e) => {
+    const btn = e.currentTarget;
     btn.disabled = true;
-    const prev = btn.textContent;
-    btn.textContent = 'エクスポート中…';
+    const prev = btn.textContent || btn.value || 'Export';
+
+    // ボタンの種類に応じて表示文言を変える
+    if ('textContent' in btn) btn.textContent = 'エクスポート中…';
+    if ('value' in btn) btn.value = 'エクスポート中…';
 
     try {
-      const wb = await supa.exportSalesWorkbook();   // ここで失敗しても catch で可視化
+      // ライブラリ存在チェック（未読み込みだと落ちるため）
+      if (typeof XLSX === 'undefined') {
+        throw new Error('XLSXライブラリが読み込まれていません（SheetJSのscriptタグを確認）');
+      }
+
+      const wb = await supa.exportSalesWorkbook(); // 失敗時はcatchへ
       supa.downloadWorkbook(wb, 'sales_data_export.xlsx');
+      console.log('Export success');
     } catch (err) {
       console.error('exportSalesWorkbook failed:', err);
       alert('エクスポート失敗：' + (err?.message || String(err)));
     } finally {
       btn.disabled = false;
-      btn.textContent = prev;
+      if ('textContent' in btn) btn.textContent = prev;
+      if ('value' in btn) btn.value = prev;
     }
+  };
+
+  // いったん既存のハンドラを外してから付け直す（重複防止）
+  buttons.forEach(btn => {
+    btn.removeEventListener('click', handler);
+    btn.addEventListener('click', handler, { passive: true });
   });
+}
+
+// DOMの用意ができてからバインド
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bindExportButtons, { once: true });
+} else {
+  // すでに読み込み済みなら即バインド
+  bindExportButtons();
 }
 
 function downloadWorkbook(wb, filename){
