@@ -16,10 +16,10 @@
       if (!jan){ msg.textContent = "JANを入力してください"; return; }
       msg.textContent = "検索中…";
       try{
-        if (!supa.getSalesSummaryByJAN) {
-          throw new Error("supa.getSalesSummaryByJAN が見つかりません。パッチJSの読み込み順を確認してください。");
-        }
-        const rows = await supa.getSalesSummaryByJAN(jan);
+if (!window.supa || !window.supa.getSalesSummaryByJAN) {
+  throw new Error("window.supa.getSalesSummaryByJAN が見つかりません。パッチJSの読み込み順を確認してください。");
+}
+const rows = await window.supa.getSalesSummaryByJAN(jan);
         tbody.innerHTML = "";
         if (!rows.length){
           msg.textContent = "該当なし";
