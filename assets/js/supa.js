@@ -1,9 +1,4 @@
-const tk = resolveTeamKey();
-const { count, error } = await sb
-  .from('sales')
-  .select('id', { count: 'exact', head: true })
-  .eq('team_key', tk);
-console.log('anon-visible count:', count, error);
+
 
 // Supabase wrapper
 const SUPABASE_URL = window.__SUPABASE_URL__ || "https://fmcmgkerzisiewcuexxr.supabase.co";
@@ -17,6 +12,29 @@ function resolveTeamKey(explicit){
       || (typeof window !== 'undefined' && window.__TEAM_KEY__)
       || 'default';
 }
+
+// ボタンのラベルIDは実際のものに合わせてください
+const btn = document.getElementById('btnExport');
+
+if (btn) {
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    const prev = btn.textContent;
+    btn.textContent = 'エクスポート中…';
+
+    try {
+      const wb = await supa.exportSalesWorkbook();   // ここで失敗しても catch で可視化
+      supa.downloadWorkbook(wb, 'sales_data_export.xlsx');
+    } catch (err) {
+      console.error('exportSalesWorkbook failed:', err);
+      alert('エクスポート失敗：' + (err?.message || String(err)));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = prev;
+    }
+  });
+}
+
 
 // --- Auth helper used by pages ---
 async function getUser(){
