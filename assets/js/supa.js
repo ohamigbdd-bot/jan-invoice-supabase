@@ -1,3 +1,9 @@
+const tk = resolveTeamKey();
+const { count, error } = await sb
+  .from('sales')
+  .select('id', { count: 'exact', head: true })
+  .eq('team_key', tk);
+console.log('anon-visible count:', count, error);
 
 // Supabase wrapper
 const SUPABASE_URL = window.__SUPABASE_URL__ || "https://fmcmgkerzisiewcuexxr.supabase.co";
